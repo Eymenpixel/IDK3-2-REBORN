@@ -1,93 +1,61 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>EYMEN CLOUD OS</title>
     <style>
-        body { background: #0c0c0c; color: #4af626; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        #auth-box { background: #1a1a1a; padding: 30px; border: 2px solid #4af626; border-radius: 10px; text-align: center; box-shadow: 0 0 20px rgba(74, 246, 38, 0.2); }
-        input { background: #000; border: 1px solid #4af626; color: #4af626; padding: 12px; margin: 8px; outline: none; width: 200px; }
-        button { background: #4af626; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; margin: 5px; transition: 0.3s; }
-        button:hover { background: #fff; }
-        #terminal-box { display: none; width: 95%; height: 95%; flex-direction: column; background: rgba(0,0,0,0.9); border: 1px solid #333; }
-        #output { flex: 1; overflow-y: auto; padding: 20px; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
-        #input-line { display: flex; background: #111; padding: 15px; border-top: 1px solid #222; }
-        #cmd { background: transparent; border: none; color: #fff; flex: 1; outline: none; font-family: monospace; font-size: 16px; margin-left: 10px; }
-        .prompt { color: #4af626; font-weight: bold; }
+        body { background: #0c0c0c; color: #4af626; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        #auth-box { background: #1a1a1a; padding: 25px; border: 2px solid #4af626; border-radius: 8px; text-align: center; }
+        input { background: #000; border: 1px solid #4af626; color: #4af626; padding: 10px; margin: 5px; outline: none; width: 180px; }
+        button { background: #4af626; color: #000; border: none; padding: 10px; cursor: pointer; font-weight: bold; margin: 3px; }
+        #terminal-box { display: none; width: 95%; height: 95%; flex-direction: column; background: #000; }
+        #output { flex: 1; overflow-y: auto; padding: 15px; white-space: pre-wrap; border: 1px solid #222; }
     </style>
 </head>
 <body>
     <div id="auth-box">
-        <h2 style="margin-top:0">EYMEN CLOUD ACCESS</h2>
-        <input type="text" id="user" placeholder="Kullanıcı Adı"><br>
+        <h2>EYMEN CLOUD</h2>
+        <input type="text" id="user" placeholder="Kullanıcı"><br>
         <input type="password" id="pass" placeholder="Şifre"><br>
-        <button onclick="auth('login')">GİRİŞ YAP</button>
-        <button onclick="auth('register')">YENİ KAYIT</button><br>
-        <button onclick="auth('clone')" style="background: #fdfd00; font-size: 11px;">KULLANICI KLONLA</button>
+        <button onclick="auth('login')">GİRİŞ</button>
+        <button onclick="auth('register')">YENİ KAYIT</button>
     </div>
 
     <div id="terminal-box">
-        <div id="output">Eymen Cloud OS v1.0.0 Online... Komut yazın veya 'help' yazın.</div>
-        <div id="input-line">
-            <span class="prompt" id="prompt-text">user@cloud:~#</span>
-            <input type="text" id="cmd" autofocus spellcheck="false">
-        </div>
+        <div id="output">Sistem hazır...</div>
     </div>
 
     <script>
-        let currentUser = "";
-        // URL sonundaki slash'ı kaldırıyoruz
-        const API =  "https://3-2-reborn.onrender.com";
+        // ÖNEMLİ: Buradaki linki Render panelindeki linkle birebir aynı yap!
+        const API = window.location.origin; 
 
         async function auth(mode) {
             const username = document.getElementById('user').value;
             const password = document.getElementById('pass').value;
-            if(!username || !password) return alert("Boş bırakma!");
-
-            let body = { mode, username, password };
-            if(mode === 'clone') body.target_user = prompt("Hangi kullanıcının yedeğini alacaksın?");
+            
+            console.log("Bağlanılan Adres:", `${API}/auth`); // Hata ayıklama için
 
             try {
                 const res = await fetch(`${API}/auth`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ mode, username, password })
                 });
-                const data = await res.json();
                 
+                if (!res.ok) throw new Error("Sunucu cevap vermedi");
+                
+                const data = await res.json();
                 if(data.status === 'success') {
-                    currentUser = username;
-                    document.getElementById('prompt-text').innerText = `${username}@cloud:~#`;
+                    alert("Başarılı! Giriş yapılıyor...");
                     document.getElementById('auth-box').style.display = 'none';
                     document.getElementById('terminal-box').style.display = 'flex';
-                    document.getElementById('cmd').focus();
                 } else {
-                    alert(data.msg);
+                    alert("Hata: " + data.msg);
                 }
-            } catch (e) {
-                alert("Sunucu henüz uyanmadı, 10 saniye sonra tekrar dene!");
+            } catch (err) {
+                console.error(err);
+                alert("Sunucu uyanamadı veya bağlantı reddedildi! Lütfen 10 saniye sonra tekrar dene.");
             }
         }
-
-        document.getElementById('cmd').addEventListener('keypress', async (e) => {
-            if(e.key === 'Enter') {
-                const command = e.target.value;
-                if(!command) return;
-                
-                const outDiv = document.getElementById('output');
-                outDiv.innerHTML += `<div><span class="prompt">${currentUser}@cloud:~#</span> ${command}</div>`;
-                
-                const res = await fetch(`${API}/exec`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ username: currentUser, command })
-                });
-                const data = await res.json();
-                outDiv.innerHTML += `<div style="color:#ccc">${data.output}</div>`;
-                e.target.value = "";
-                outDiv.scrollTop = outDiv.scrollHeight;
-            }
-        });
     </script>
 </body>
 </html>
